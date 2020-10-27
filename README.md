@@ -2,7 +2,7 @@
 
 This repository contains some scripts to compute the deformation field around a surface threading dislocation (edge and screw) and generate input .h5 file for the EMsoftdefect program.
 
-Details of the mathematical formulation can be found in the included [YSH-Theoretical Model](https://github.com/ChaoyiZhu93/YSH_3D_STD/YSH-Theoretical-Model.pdf) document. 
+Details of the mathematical formulation can be found in the included [YSH-Theoretical Model](YSH-Theoretical-Model.pdf) document. 
 
 Reference publication: [C Zhu, M De Graef, 2020. EBSD pattern simulations for an interaction volume containing lattice defects, Ultramicroscopy 218, 113088](https://www.sciencedirect.com/science/article/pii/S0304399120302394)
 
