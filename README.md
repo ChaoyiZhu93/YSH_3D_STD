@@ -2,6 +2,10 @@
 
 This repository contains some scripts to compute the deformation field around a surface threading dislocation (edge and screw) and generate input .h5 file for the EMsoftdefect program.
 
+The three cases of dislocations are illustrated below. From left to right, it corresponds to screw dislocation on the y-z plane, edge dislocation on the y-z plane and edge dislocation on the x-z plane. The inclination angle α is defined with respect to the -z direction. 
+
+<img src="ysh_config.jpg" width="1285" height="330">
+
 Details of the mathematical formulation can be found in the included [YSH-Theoretical Model](YSH-Theoretical-Model.pdf) document. 
 
 Reference publication: [C Zhu, M De Graef, 2020. EBSD pattern simulations for an interaction volume containing lattice defects, Ultramicroscopy 218, 113088](https://www.sciencedirect.com/science/article/pii/S0304399120302394)
