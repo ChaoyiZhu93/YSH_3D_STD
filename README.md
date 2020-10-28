@@ -1,10 +1,12 @@
 # Deformation Field Around a Surface Threading Dislocation Based on Yoffe-Shaibani-Hazzeldine model
 
-This repository contains some scripts to compute the deformation field around a surface threading dislocation (edge and screw) and generate input .h5 file for the EMsoftdefect program.
+This repository contains some scripts to compute the deformation field around a surface threading dislocation (edge and screw) in an isotropic medium.
 
-The three cases of dislocations are illustrated below. From left to right, it corresponds to screw dislocation on the y-z plane, edge dislocation on the y-z plane and edge dislocation on the x-z plane. The inclination angle α is defined with respect to the -z direction. 
+It can also generate input .h5 file for the EMsoftdefect program.
 
-<img src="docs/ysh_config.jpg" width="1285" height="330">
+The three cases of dislocations are illustrated below. From left to right, it corresponds to screw dislocation on the y-z plane, edge dislocation with Burgers vector on the y-z plane and edge dislocation with Burgers vector along x direction (pure edge for all angles). The inclination angle α is defined with respect to the -z direction. 
+
+<img src="docs/ysh_config.jpg" width="1000" height="361">
 
 Details of the mathematical formulation can be found in the included [YSH-Theoretical Model](docs/YSH-Theoretical-Model.pdf) document. 
 
@@ -12,7 +14,7 @@ Reference publication: [C Zhu, M De Graef, 2020. EBSD pattern simulations for an
 
 
 ## Financial Support 
-EBSD/ECP/EKP development of this package, including dictionary indexing for EBSD/ECP, was started with support from an AFOSR/MURI grant, FA9550-12-1-0458; the original EBSD code from CTEMsoft 2.0 was developed with support from an ONR grant, N00014-12-1-0075.  All recent development of EMsoft was performed with support from an ONR Vannevar Bush Faculty Fellowship, N00014-­16-­1-­2821.
+Marc De Graef Research Group acknowledges financial suppport from Vannevar Bush Faculty Fellowship, N00014-­16-­1-­2821.
 
 ## Licenses ##
 
