@@ -1,10 +1,8 @@
 clear
 close all
 %% Input Parameters
-% Inclination angle (unit:degree)
-a=0; 
-% Burgers vector (unit: nm)
-b=[0.2556,0,0]; 
+% lattice parameter (cubic, nm)
+a=0.3615;
 % Poisson's ratio
 v=0.3;
 % Grid step size (unit: nm)
@@ -15,12 +13,11 @@ grid_size=334;
 % Young's Modulus (unit:GPa)
 E=200;
 % step size in depth (unit: nm)
-z_step=1;
+z_step=5;
 % maximum depth to consider (unit: nm)
-max_z=10;
+max_z=100;
 %%
-% convert inclination angle it to radians
-a=deg2rad(a);
+
 % stiffness matrix
 la=E*v/((1+v)*(1-2*v));
 G=E/(2*(1+v));
@@ -30,41 +27,117 @@ C=[la+2*G,     la,         la,  0,  0,  0;
     0,           0,          0, G,  0,  0;
     0,           0,          0,  0, G,  0;
     0,           0,          0,  0,  0, G];
-% grid with origin at the (0,0) 
+
+% grid with origin at the (0,0)
 bound=(grid_size*grid_step-grid_step)/2;
 x0=[-bound:grid_step:bound];
 y0=[-bound:grid_step:bound];
+
 % generate the x y grid mesh
 [x_grid,y_grid]=meshgrid(x0,y0);
 y_grid=flipud(y_grid);
+
+new_x_grid=zeros(size(y_grid));
+new_y_grid=zeros(size(y_grid));
 % the depth grid
 depth_z=-[0:z_step:max_z];
 
-%% plots for strain and rotation field (z=0)
-ca=[-0.001,0.001];
-% pure edge dislocation with Burgers vector in x direction
-[beta,defTensor]=YSH(b,a,G,v,x_grid,y_grid,depth_z,'Edge-xz');
-% surface rotation and strain at depth = 0 [beta(:,:,:,:,1)]
-strainrot=YSHStrainRotation(beta(:,:,:,:,1));
-plotStrainRotation(strainrot,ca);
-%% plots for stress field (z=0)
-stress=YSHStress(C,strainrot);
-ca=[-0.08,0.08];
-plotStress(stress,ca)
-%% Deformation Tensor in a Volume
-np=[size(x_grid,2),size(x_grid,1),numel(depth_z)];
-name='\data\YSH Edge Dislocation z=0-10.h5';
-step=[grid_step,grid_step,z_step];
-PC(:,:,1)=0*ones(size(x_grid,2),size(x_grid,1));
-PC(:,:,2)=0*ones(size(x_grid,2),size(x_grid,1));
-PC(:,:,3)=14250*ones(size(x_grid,2),size(x_grid,1));
-eu=[0,0,0];
-% save data
-currentFile = mfilename( 'fullpath' );
-[pathstr,~,~] = fileparts( currentFile );
-path=[ pathstr, name ];
-DefTensorVolume(path,np,step,eu,PC,defTensor);
-%% functions
+%% edge type dislocations (12)
+burger_slip_edge=0.5*a*[-1 0 1;-1 1 0;0 -1 1;0 1 1;-1 1 0;1 0 1;
+    1 0 1;1 1 0;0 -1 1;0 1 1;1 1 0;-1 0 1].';
+
+plane_slip_edge=[1 1 1;1 1 1; 1 1 1;-1 -1 1;-1 -1 1;-1 -1 1;
+    -1 1 1;-1 1 1;-1 1 1;1 -1 1;1 -1 1;1 -1 1].';
+
+line_slip_screw=[1 1 0;1 0 1;0 1 1;-1 1 0;1 0 -1;0 -1 1];
+%%
+e1=[1,0,0];
+e2=[0,1,0];
+e3=[0,0,1];
+
+for i=1
+    % dislocation line of edge dislocation
+    line_slip_edge(:,i)=cross(plane_slip_edge(:,i),burger_slip_edge(:,i));
+    % line direction projected on the z plane (normalzed)
+    line_slip_edge_zp(:,i)=[line_slip_edge(1,i),line_slip_edge(2,i),0]./norm([line_slip_edge(1,i),line_slip_edge(2,i),0]);
+    % normal to the plane containing z and dislocation line (yz plane)
+    x_slip_edge_zp(:,i)=cross(line_slip_edge_zp(:,i),e3)/norm(cross(line_slip_edge_zp(:,i),e3));
+    
+    p_1=x_slip_edge_zp(1:2,i)';
+    p_2=line_slip_edge_zp(1:2,i)';
+    p1=[1,0];
+    p2=[0,1];
+    R(:,:,i)=[dot(p1,p_1),dot(p1,p_2);
+        dot(p2,p_1),dot(p2,p_2)];
+    
+    for j=1:numel(x_grid)
+        temp_position=R(:,:,i)'*[x_grid(j);y_grid(j)];
+        new_x_grid(j)=temp_position(1);
+        new_y_grid(j)=temp_position(2);
+    end
+    
+    
+    
+    e_2=line_slip_edge_zp(:,i);
+    e_1=x_slip_edge_zp(:,i);
+    e_3=e3;
+    Q(:,:,i)=[dot(e_1,e1),dot(e_1,e2),dot(e_1,e3);
+        dot(e_2,e1),dot(e_2,e2),dot(e_2,e3);
+        dot(e_3,e1),dot(e_3,e2),dot(e_3,e3)];
+    edge_yz(:,i)=burger_slip_edge(:,i)-dot(burger_slip_edge(:,i),x_slip_edge_zp(:,i))*x_slip_edge_zp(:,i);
+    edge_xz(:,i)=dot(burger_slip_edge(:,i),x_slip_edge_zp(:,i))*x_slip_edge_zp(:,i);
+    
+ 
+    if line_slip_edge(3,i)>0
+        inclination(i)=-acosd(dot(line_slip_edge(:,i),e3)/norm(line_slip_edge(:,i)));
+    elseif line_slip_edge(3,i)<0
+        inclination(i)=180-acosd(dot(line_slip_edge(:,i),e3)/norm(line_slip_edge(:,i)));
+    end
+    
+    
+    
+    [beta_yz,~]=YSH(Q(:,:,i)*edge_yz(:,i),deg2rad(inclination(i)),G,v,new_x_grid,new_y_grid,depth_z,'Edge-yz');
+    [beta_xz,~]=YSH(Q(:,:,i)*edge_xz(:,i),deg2rad(inclination(i)),G,v,new_x_grid,new_y_grid,depth_z,'Edge-xz');
+    
+    for k=1
+        
+        beta=beta_xz(:,:,:,:,k)+beta_yz(:,:,:,:,k);
+        beta=replaceNaN(beta);
+        
+        ca=[-0.001,0.001];
+        
+        strainrot=YSHStrainRotation(beta);
+        plotStrainRotation(strainrot,ca);
+        
+        stress=YSHStress(C,strainrot);
+        
+        ca=[-0.08,0.08];
+        plotStress(stress,ca)
+        
+    end
+    clear beta beat_yz beta_xz
+    
+
+end
+
+function [beta]=replaceNaN(beta)
+
+for i=1:size(beta,1)
+    for j=1:size(beta,2)
+        for k=1:size(beta,3)
+            for l=1:size(beta,4)
+                if isnan(beta(i,j,k,l))
+                    if l<size(beta,4)
+                        beta(i,j,k,l)=beta(i,j,k,l+1);
+                    elseif l==size(beta,4)
+                        beta(i,j,k,l)=beta(i,j,k,l-1);
+                    end
+                end
+            end
+        end
+    end
+end
+end
 
 function [strainrot]=YSHStrainRotation(beta)
 strainrot=zeros(size(beta));
