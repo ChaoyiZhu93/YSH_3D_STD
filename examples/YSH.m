@@ -1,5 +1,5 @@
 
-function [beta,defTensor]=YSH(b,angle,mu,p,x_grid,y_grid,z_grid,type)
+function [beta,defTensor,disp]=YSH(b,angle,mu,p,x_grid,y_grid,z_grid,type)
 %% Compute the distortion field around surface threading dislocations
 % Reference: Shaibani, S.J. and Hazzledine, P.M., 1981.
 
@@ -100,15 +100,20 @@ switch type
 end
 % displacement field with inclination angle substitution
 [u_x,u_y,u_z]=DisplacementSym(u_x,u_y,u_z,angle);
+
 % distortion field
-Beta=DistortionSym(b,p,u_x,u_y,u_z);
+[Beta,Disp]=DistortionSym(b,p,u_x,u_y,u_z);
+
+
 % distortion field at a specified depth
-    beta=zeros(3,3,size(x_grid,1),size(x_grid,2),numel(z_grid));
-    defTensor=zeros(9,numel(z_grid),size(x_grid,2),size(x_grid,1));
+beta=zeros(3,3,size(x_grid,1),size(x_grid,2),numel(z_grid));
+disp=zeros(3,size(x_grid,1),size(x_grid,2),numel(z_grid));
+defTensor=zeros(9,numel(z_grid),size(x_grid,2),size(x_grid,1));
 
 for k=1:numel(z_grid)
     depth=z_grid(k)*ones(size(x_grid));
     beta(:,:,:,:,k)=YSHDistortion(Beta,x_grid,y_grid,depth);
+    disp(:,:,:,k)=DisplacementField(Disp,x_grid,y_grid,depth);
     for i=1:size(x_grid,1)
         for j=1:size(x_grid,2)
             F_temp=reshape(beta(:,:,i,j,k),[1,9])+[1 0 0 0 1 0 0 0 1];
@@ -135,7 +140,7 @@ else
 end
 end
 
-function [Beta]=DistortionSym(b,p,u,v1,w)
+function [Beta,Disp]=DistortionSym(b,p,u,v1,w)
 % DistortionSym obtains the distortion field by taking derivarives of the
 % displacement field and substitute Burgers vector and Poisson's ratio
 
@@ -151,8 +156,35 @@ B(2,3) = diff(v1,z);
 B(3,1) = diff(w,x);
 B(3,2) = diff(w,y);
 B(3,3) = diff(w,z);
+
+% displacement field expression
+Disp(1)=subs(u,{bx,by,bz,v},{b(1),b(2),b(3),p});
+Disp(2)=subs(v1,{bx,by,bz,v},{b(1),b(2),b(3),p});
+Disp(3)=subs(w,{bx,by,bz,v},{b(1),b(2),b(3),p});
+
 % substitue values for Burgers vector and Poisson's ratio
 Beta=subs(B,{bx,by,bz,v},{b(1),b(2),b(3),p});
+end
+
+function [disp]=DisplacementField(Disp,x_grid,y_grid,depth)
+% DisplacementField calculates the displacement field vectors
+syms x y z
+
+disp=zeros(3,size(x_grid,1),size(x_grid,2));
+
+disp_1(x,y,z)=Disp(1);
+disp_2(x,y,z)=Disp(2);
+disp_3(x,y,z)=Disp(3);
+
+Dis_1=matlabFunction(disp_1);
+Dis_2=matlabFunction(disp_2);
+Dis_3=matlabFunction(disp_3);
+
+disp(1,:,:)=Dis_1(x_grid,y_grid,depth);
+disp(2,:,:)=Dis_2(x_grid,y_grid,depth);
+disp(3,:,:)=Dis_3(x_grid,y_grid,depth);
+
+
 end
 
 function [beta]=YSHDistortion(Beta,x_grid,y_grid,depth)

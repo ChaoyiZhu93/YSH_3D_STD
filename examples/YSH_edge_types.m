@@ -6,18 +6,17 @@ a=0.3615;
 % Poisson's ratio
 v=0.3;
 % Grid step size (unit: nm)
-grid_step=3; % nm
+grid_step=1; % nm
 % Number of grid points (even number to avoid singularity) (unit:)
 % Total size of the grid=grid_step*grid_size
 grid_size=334;
 % Young's Modulus (unit:GPa)
 E=200;
 % step size in depth (unit: nm)
-z_step=5;
+z_step=1;
 % maximum depth to consider (unit: nm)
 max_z=100;
 %%
-
 % stiffness matrix
 la=E*v/((1+v)*(1-2*v));
 G=E/(2*(1+v));
@@ -50,12 +49,13 @@ plane_slip_edge=[1 1 1;1 1 1; 1 1 1;-1 -1 1;-1 -1 1;-1 -1 1;
     -1 1 1;-1 1 1;-1 1 1;1 -1 1;1 -1 1;1 -1 1].';
 
 line_slip_screw=[1 1 0;1 0 1;0 1 1;-1 1 0;1 0 -1;0 -1 1];
-%%
+%% standard cartesian coordinates (sample frame)
 e1=[1,0,0];
 e2=[0,1,0];
 e3=[0,0,1];
-
-for i=1
+ca=[-0.001,0.001];
+for i=1 % only one type is used here as an example
+    
     % dislocation line of edge dislocation
     line_slip_edge(:,i)=cross(plane_slip_edge(:,i),burger_slip_edge(:,i));
     % line direction projected on the z plane (normalzed)
@@ -87,7 +87,7 @@ for i=1
     edge_yz(:,i)=burger_slip_edge(:,i)-dot(burger_slip_edge(:,i),x_slip_edge_zp(:,i))*x_slip_edge_zp(:,i);
     edge_xz(:,i)=dot(burger_slip_edge(:,i),x_slip_edge_zp(:,i))*x_slip_edge_zp(:,i);
     
- 
+    
     if line_slip_edge(3,i)>0
         inclination(i)=-acosd(dot(line_slip_edge(:,i),e3)/norm(line_slip_edge(:,i)));
     elseif line_slip_edge(3,i)<0
@@ -95,29 +95,31 @@ for i=1
     end
     
     
+    [beta_yz,~,disp_yz]=YSH(Q(:,:,i)*edge_yz(:,i),deg2rad(inclination(i)),G,v,new_x_grid,new_y_grid,depth_z,'Edge-yz');
+    [beta_xz,~,disp_xz]=YSH(Q(:,:,i)*edge_xz(:,i),deg2rad(inclination(i)),G,v,new_x_grid,new_y_grid,depth_z,'Edge-xz');
     
-    [beta_yz,~]=YSH(Q(:,:,i)*edge_yz(:,i),deg2rad(inclination(i)),G,v,new_x_grid,new_y_grid,depth_z,'Edge-yz');
-    [beta_xz,~]=YSH(Q(:,:,i)*edge_xz(:,i),deg2rad(inclination(i)),G,v,new_x_grid,new_y_grid,depth_z,'Edge-xz');
+    disp=disp_yz+disp_xz;
+    beta=beta_yz+beta_xz;
     
-    for k=1
+    fig=figure;
+    for k=1:numel(depth_z)
+        beta(:,:,:,:,k)=replaceNaN(beta(:,:,:,:,k));
         
-        beta=beta_xz(:,:,:,:,k)+beta_yz(:,:,:,:,k);
-        beta=replaceNaN(beta);
-        
-        ca=[-0.001,0.001];
         
         strainrot=YSHStrainRotation(beta);
         plotStrainRotation(strainrot,ca);
         
-        stress=YSHStress(C,strainrot);
         
-        ca=[-0.08,0.08];
-        plotStress(stress,ca)
-        
+        drawnow
+        frame = getframe(fig);
+        im{k} =frame2im(frame);
     end
-    clear beta beat_yz beta_xz
+    clear disp_yz disp_xz beat_yz beta_xz
     
-
+    
+    filename = sprintf('YSH Edge Dislocation Stress Type %d.gif',i); % Specify the output file name
+    savegif(im,depth_z,filename);
+    close all
 end
 
 function [beta]=replaceNaN(beta)
@@ -152,7 +154,16 @@ strainrot(3,2,:,:)=0.5*(reshape(beta(2,3,:,:),[size(beta,3),size(beta,4)])-resha
 strainrot(3,1,:,:)=0.5*(reshape(beta(3,1,:,:),[size(beta,3),size(beta,4)])-reshape(beta(1,3,:,:),[size(beta,3),size(beta,4)]));
 
 end
-
+function []=savegif(im,depth_z,filename)
+for idx = 1:numel(depth_z)
+    [A,map] = rgb2ind(im{idx},256);
+    if idx == 1
+        imwrite(A,map,filename,'gif','LoopCount',Inf,'DelayTime',0.5);
+    else
+        imwrite(A,map,filename,'gif','WriteMode','append','DelayTime',0.5);
+    end
+end
+end
 function plotStrainRotation(beta,ca,print_title)
 figure
 subplot(3,3,1);
@@ -229,6 +240,31 @@ for i=1:size(strain,3)
 end
 end
 
+function plotDisplacement(beta,ca,print_title)
+% plot the stress tensor
+subplot(1,3,1);
+imagesc(reshape(beta(1,:,:),[size(beta,2),size(beta,3)]));
+colormap jet;caxis(ca);colorbar
+axis image; axis ij; axis off;
+title('u_{x}','Fontsize',14);
+
+subplot(1,3,2);
+imagesc(reshape(beta(2,:,:),[size(beta,2),size(beta,3)]));colormap jet;caxis(ca);
+axis image; axis ij;  axis off;colorbar
+title('u_{y}','Fontsize',14);
+
+subplot(1,3,3);
+imagesc(reshape(beta(3,:,:),[size(beta,2),size(beta,3)]));colormap jet;caxis(ca);
+axis image; axis ij;  axis off;colorbar
+title('u_{z}','Fontsize',14);
+
+% print the figure (optional)
+switch nargin
+    case 3
+        print(print_title,'-dtiff','-r300');
+end
+end
+
 function plotStress(beta,ca,print_title)
 figure
 subplot(3,3,1);
@@ -246,8 +282,6 @@ subplot(3,3,3);
 imagesc(reshape(beta(1,3,:,:),[size(beta,3),size(beta,4)]));colormap jet;caxis(ca);
 axis image; axis ij;  axis off;
 title('\sigma_{13}','Fontsize',14);
-
-
 
 subplot(3,3,5);
 imagesc(reshape(beta(2,2,:,:),[size(beta,3),size(beta,4)]));colormap jet;caxis(ca);
@@ -277,6 +311,7 @@ end
 end
 
 function DefTensorVolume(name,np,step,eu,pc,defTensor)
+% save Ftensor volume data
 warning('off')
 h5create(name,'/DeformationFieldInfo/npix',[1,1],'Datatype','int32');
 h5create(name,'/DeformationFieldInfo/npiy',[1,1],'Datatype','int32');
@@ -300,4 +335,14 @@ h5write(name, '/DeformationFieldInfo/pcx', pc(:,:,1));
 h5write(name, '/DeformationFieldInfo/pcy', pc(:,:,2));
 h5write(name, '/DeformationFieldInfo/L', pc(1,1,3));
 h5write(name, '/DeformationFieldInfo/deftensor', defTensor);
+end
+
+function DisplacementVolume(name,disp)
+% save the displacement volume data
+warning('off')
+disp_mod=ones(5,size(disp,2),size(disp,3),size(disp,4));
+disp_mod(1:3,:,:,:)=disp;
+h5create(name,'/Data',[size(disp_mod,1),size(disp_mod,2),size(disp_mod,3),size(disp_mod,4)],'Datatype','double');
+h5write(name, '/Data', disp_mod);
+
 end
